@@ -17,10 +17,10 @@ Signal data;
 
 void ResetData() 
 {
-data.throttle = 127; // Motor Stop (254/2=127)| Motor Kapalı (Signal lost position | sinyal kesildiğindeki pozisyon)
-data.pitch = 127; // Center | Merkez (Signal lost position | sinyal kesildiğindeki pozisyon)
-data.roll = 127; // Center | merkez (Signal lost position | sinyal kesildiğindeki pozisyon)
-data.yaw = 127; // Center | merkez (Signal lost position | sinyal kesildiğindeki pozisyon)
+data.throttle = 127; // Motor Stop (254/2=127)| 
+data.pitch = 127; // Center 
+data.roll = 127; // Center 
+data.yaw = 127; // Center 
 }
 
 void setup()
@@ -29,11 +29,11 @@ void setup()
 
 radio.begin();
 radio.openWritingPipe(pipeOut);
-radio.stopListening(); //start the radio comunication for Transmitter | Verici olarak sinyal iletişimi başlatılıyor
+radio.stopListening(); //start the radio comunication for Transmitter | 
 ResetData();
 }
 
-// Joystick center and its borders | Joystick merkez ve sınırları
+// Joystick center and its borders | 
 
 int mapJoystickValues(int val, int lower, int middle, int upper, bool reverse)
 {
@@ -47,13 +47,13 @@ return ( reverse ? 255 - val : val );
 
 void loop()
 {
-// Control Stick Calibration | Kumanda Kol Kalibrasyonları
-// Setting may be required for the correct values of the control levers. | Kolların doğru değerleri için ayar gerekebilir.
+// Control Stick Calibration 
+// Setting may be required for the correct values of the control levers. 
 
 data.throttle = mapJoystickValues( analogRead(A0), 524, 524, 1015, true );
-data.roll = mapJoystickValues( analogRead(A1), 12, 524, 1020, true );      // "true" or "false" for servo direction | "true" veya "false" servo yönünü belirler
-data.pitch = mapJoystickValues( analogRead(A2), 12, 524, 1020, true );     // "true" or "false" for servo direction | "true" veya "false" servo yönünü belirler
-data.yaw = mapJoystickValues( analogRead(A3), 12, 524, 1020, true );       // "true" or "false" for servo direction | "true" veya "false" servo yönünü belirler
+data.roll = mapJoystickValues( analogRead(A1), 12, 524, 1020, true );      // "true" or "false" for servo direction 
+data.pitch = mapJoystickValues( analogRead(A2), 12, 524, 1020, true );     // "true" or "false" for servo direction 
+data.yaw = mapJoystickValues( analogRead(A3), 12, 524, 1020, true );       // "true" or "false" for servo direction 
 
 radio.write(&data, sizeof(Signal));
 }
