@@ -8,8 +8,9 @@ Adafruit_SSD1306 display;
 #define SCREEN_HEIGHT 64
 #define OLED_RESET -1
 int progress=0; 
+
 const uint64_t pipeOut = 0xE9E8F0F0E1LL;   //IMPORTANT: The same as in the receiver 0xE9E8F0F0E1LL 
-RF24 radio(7, 8); // select CE,CSN pin | 
+RF24 radio(7, 8); // select CE,CSN pin 
 
 struct Signal {
 byte throttle;
@@ -17,6 +18,7 @@ byte steer;
 };
 
 Signal data;
+
 
 void ResetData() 
 {
@@ -29,7 +31,11 @@ void setup()
 //Start everything up
 Serial.begin(9600);
 radio.begin();
+radio.setAutoAck(1);
+radio.setDataRate(RF24_1MBPS); //Max transmitt speed
+radio.setPALevel(RF24_PA_MAX); //Use maximum power amplification
 radio.openWritingPipe(pipeOut);
+radio.setChannel(108);  // Set the transmitting channel to 108
 radio.stopListening(); //start the radio comunication for Transmitter | 
 ResetData();
 //OLED   
@@ -76,9 +82,9 @@ display.setCursor(30, 0);  // (x,y)
 display.println(" RC car TX");
 data.throttle = map( analogRead(A0), 0, 1023, 0, 255 );
 data.steer = map( analogRead(A1), 0, 1023, 0, 255 );     
-
+const char text[] = "Hello World";
 radio.write(&data, sizeof(Signal));
-
+radio.write(&text, sizeof(text));
 //THROTTLE UI
 display.setCursor(0, 10);  // (x,y)
 display.println("Throttle: ");  // Text or value to print
@@ -91,5 +97,6 @@ display.drawRect(50, 21, 78, 4, WHITE);
 display.fillRect(51, 22, data.steer/3.282051282, 2, WHITE); 
 //PRINT ALL
 display.display();
+
 
 }
