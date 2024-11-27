@@ -7,26 +7,33 @@
 #include <RF24.h>
 #include <LiquidCrystal_I2C.h>
 #include <Wire.h>
+#include <Servo.h> 
 LiquidCrystal_I2C lcd(0x27,  16, 2);
 //L298N pin definitions
-#define IN1	5
+#define IN1	2
 #define IN2	4
-#define IN3	3
-#define IN4	2
+#define IN3	6
+#define IN4	9
+#define ENA 3
+#define ENB 10
 #define MAX_SPEED 255 //từ 0-255
 #define MIN_SPEED 0
+Servo myservo;  
+int servoPin = 5;
 
 int progress,i;
 const char text[15];
+
 struct Signal {
 byte throttle;      
 byte steer;
+byte servoPos;
 };
 
 Signal data;
 
-const uint64_t pipeIn = 0xE9E8F0F0E1LL;
-RF24 radio(7, 8); 
+const byte address[6] = "00001";
+RF24 radio(7,8); 
 
 void ResetData()
 {
@@ -119,7 +126,6 @@ byte five[] = {
  }
 
 
-
 void setup()
 {
   Serial.begin(9600);
@@ -133,19 +139,18 @@ void setup()
   lcd.createChar(3, three);
   lcd.createChar(4, four);
   lcd.createChar(5, five);
- 
-  delay(1000);
+  //Servo definitions
+  myservo.attach(servoPin); 
+  //Loading procedure
   lcd.clear();
   lcd.setCursor(3,0);
   lcd.print("Loading RX");
-  for(int i=0; i <= 100; i=i+4)
+  for(int i=0; i <= 100; i=i+6)
   {
     updateProgressBar(i, 100, 1);   //This line calls the subroutine that displays the progress bar.  The 3 arguments are the current count, the total count and the line you want to print on.
-    delay(200);
+    delay(100);
   }
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("Waiting 4 NRF24");
+
   //Set the pins for each PWM signal to L298N driver
 	pinMode(IN1, OUTPUT);
 	pinMode(IN2, OUTPUT);
@@ -153,11 +158,10 @@ void setup()
 	pinMode(IN4, OUTPUT);
 
   //Configure the NRF24 module
-  // ResetData();
+  ResetData();
   radio.begin();
-  radio.setAutoAck(1); //Hong biet :)))
-  radio.setDataRate(RF24_1MBPS); //Max transmitt speed
-  radio.openReadingPipe(1,pipeIn); //Open port
+  // radio.setDataRate(RF24_2MBBPS); //Max transmitt speed
+  radio.openReadingPipe(0,address); //Open port
   radio.setChannel(108);  // Set the transmitting channel to CH108
   radio.startListening(); //start the radio comunication for receiver 
 }
@@ -167,22 +171,19 @@ unsigned long lastRecvTime = 0;
 void recvData()
 {
 if (radio.available()) {
+    delay(100);
     lcd.clear();
-    lcd.setCursor(0,0);
-    lcd.print("NRF24 connected!");
     radio.read(&data, sizeof(Signal));
-    // char text[32] = {0};
-    // radio.read(&text, sizeof(text));
-    // lcd.print(text);
-    // lcd.setCursor(0,0);
+    //readTEXT
+    char text[32] = {0};
     radio.read(&text, sizeof(text));
     Serial.println(text);
-    // lastRecvTime = millis();   
-}
-else
-    lcd.clear();
+    lcd.print(text);
     lcd.setCursor(0,0);
-    lcd.print("Waiting 4 NRF24");
+    radio.read(&text, sizeof(text));
+    Serial.println(text);
+    lastRecvTime = millis();   
+}
 }
 void motor_1_Dung() {
 	digitalWrite(IN1, LOW);
@@ -235,10 +236,17 @@ unsigned long now = millis();
 if ( now - lastRecvTime > 1000 ) {
 ResetData(); // Signal lost.. Reset data |
 }
-}
+else
+{
 int ch_width_1 = map(data.throttle, 0, 255, 1000, 2000);     // pin D2 (PWM signal)
-int ch_width_2 = map(data.steer,    0, 255, 1000, 2000);     // pin D3 (PWM signal)
+int ch_width_2 = map(data.steer,    0, 255, 1000, 2000);
+int servopos = data.servoPos;     // pin D3 (PWM signal)
+// Serial.print("Throttle");
+// Serial.println(ch_width_1);
+myservo.write(servopos);
 
+}
+}
 // Write the PWM signal 
 // ch1.writeMicroseconds(ch_width_1);
 // ch2.writeMicroseconds(ch_width_2);
