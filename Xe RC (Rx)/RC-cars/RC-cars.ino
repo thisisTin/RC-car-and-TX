@@ -1,14 +1,7 @@
-//  4 Channel Receiver 
-//  PWM output on L298N
-//  UI A4 A5 LCD display
-//
 #include <SPI.h>
 #include <nRF24L01.h>
 #include <RF24.h>
-#include <LiquidCrystal_I2C.h>
-#include <Wire.h>
-#include <Servo.h> 
-LiquidCrystal_I2C lcd(0x27,  16, 2);
+#include <Servo.h>
 //L298N pin definitions
 #define IN1	2
 #define IN2	4
@@ -18,250 +11,121 @@ LiquidCrystal_I2C lcd(0x27,  16, 2);
 #define ENB 10
 #define MAX_SPEED 255 //từ 0-255
 #define MIN_SPEED 0
-Servo myservo;  
-int servoPin = 5;
 
-int progress,i;
-const char text[15];
+int pwm1,pwm2;
+//create an RF24 object
+RF24 radio(7, 8);  // CE, CSN
 
+//address through which two modules communicate.
+const byte address[6] = "00001";
+
+//Signal Receive
 struct Signal {
-byte throttle;      
+byte throttle;
 byte steer;
 byte servoPos;
 };
 
 Signal data;
 
-const byte address[6] = "00001";
-RF24 radio(7,8); 
+//Servo definitions
+Servo myservo;  
+int servoPin = 5;
 
 void ResetData()
 {
 // Define the initial value of each data input.
 // The middle position for Potentiometers. (254/2=127) 
-data.throttle = 127; // Motor Stop | 
-data.steer = 127;  // Center | 
+data.throttle = 125; // Motor Stop | 
+data.steer = 129;  // Center | 
+data.servoPos = 89;
 }
-
-byte zero[] = {
-  B00000,
-  B00000,
-  B00000,
-  B00000,
-  B00000,
-  B00000,
-  B00000,
-  B00000
-};
-byte one[] = {
-  B10000,
-  B10000,
-  B10000,
-  B10000,
-  B10000,
-  B10000,
-  B10000,
-  B10000
-};
-
-byte two[] = {
-  B11000,
-  B11000,
-  B11000,
-  B11000,
-  B11000,
-  B11000,
-  B11000,
-  B11000
-};
-
-byte three[] = {
-  B11100,
-  B11100,
-  B11100,
-  B11100,
-  B11100,
-  B11100,
-  B11100,
-  B11100
-};
-
-byte four[] = {
-  B11110,
-  B11110,
-  B11110,
-  B11110,
-  B11110,
-  B11110,
-  B11110,
-  B11110
-};
-
-byte five[] = {
-  B11111,
-  B11111,
-  B11111,
-  B11111,
-  B11111,
-  B11111,
-  B11111,
-  B11111
-};
-
-
- void updateProgressBar(unsigned long count, unsigned long totalCount, int lineToPrintOn)
- {
-    double factor = totalCount/80.0;          //See note above!
-    int percent = (count+1)/factor;
-    int number = percent/5;
-    int remainder = percent%5;
-    if(number > 0)
-    {
-       lcd.setCursor(number-1,lineToPrintOn);
-       lcd.write(5);
-    }
-   
-       lcd.setCursor(number,lineToPrintOn);
-       lcd.write(remainder);   
- }
-
 
 void setup()
 {
+  while (!Serial);
   Serial.begin(9600);
-  //LCD initiate
-  lcd.init();
-  lcd.backlight();
-  
-  lcd.createChar(0, zero);
-  lcd.createChar(1, one);
-  lcd.createChar(2, two);
-  lcd.createChar(3, three);
-  lcd.createChar(4, four);
-  lcd.createChar(5, five);
-  //Servo definitions
-  myservo.attach(servoPin); 
-  //Loading procedure
-  lcd.clear();
-  lcd.setCursor(3,0);
-  lcd.print("Loading RX");
-  for(int i=0; i <= 100; i=i+6)
-  {
-    updateProgressBar(i, 100, 1);   //This line calls the subroutine that displays the progress bar.  The 3 arguments are the current count, the total count and the line you want to print on.
-    delay(100);
-  }
-
-  //Set the pins for each PWM signal to L298N driver
-	pinMode(IN1, OUTPUT);
-	pinMode(IN2, OUTPUT);
-	pinMode(IN3, OUTPUT);
-	pinMode(IN4, OUTPUT);
-
-  //Configure the NRF24 module
-  ResetData();
   radio.begin();
-  // radio.setDataRate(RF24_2MBBPS); //Max transmitt speed
-  radio.openReadingPipe(0,address); //Open port
-  radio.setChannel(108);  // Set the transmitting channel to CH108
-  radio.startListening(); //start the radio comunication for receiver 
+  
+  //set the address
+  radio.openReadingPipe(0, address);
+  
+  //Set module as receiver
+  radio.startListening();
+  
 }
 
-unsigned long lastRecvTime = 0;
-
-void recvData()
-{
-if (radio.available()) {
-    delay(100);
-    lcd.clear();
-    radio.read(&data, sizeof(Signal));
-    //readTEXT
-    char text[32] = {0};
-    radio.read(&text, sizeof(text));
-    Serial.println(text);
-    lcd.print(text);
-    lcd.setCursor(0,0);
-    radio.read(&text, sizeof(text));
-    Serial.println(text);
-    lastRecvTime = millis();   
-}
-}
-void motor_1_Dung() {
-	digitalWrite(IN1, LOW);
-	digitalWrite(IN2, LOW);
-}
- 
-void motor_2_Dung() {
-	digitalWrite(IN3, LOW);
-	digitalWrite(IN4, LOW);
-}
- 
-void motor_1_Tien(int speed) { //speed: từ 0 - MAX_SPEED
-	speed = constrain(speed, MIN_SPEED, MAX_SPEED);//đảm báo giá trị nằm trong một khoảng từ 0 - MAX_SPEED - http://arduino.vn/reference/constrain
-	digitalWrite(IN1, HIGH);// chân này không có PWM
-	analogWrite(IN2, 255 - speed);
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("FW1");
-}
- 
-void motor_1_Lui(int speed) {
-	speed = constrain(speed, MIN_SPEED, MAX_SPEED);//đảm báo giá trị nằm trong một khoảng từ 0 - MAX_SPEED - http://arduino.vn/reference/constrain
-	digitalWrite(IN1, LOW);// chân này không có PWM
-	analogWrite(IN2, speed);
-  lcd.setCursor(0,0);
-  lcd.print("RV1");
-}
- 
-void motor_2_Tien(int speed) { //speed: từ 0 - MAX_SPEED
-	speed = constrain(speed, MIN_SPEED, MAX_SPEED);//đảm báo giá trị nằm trong một khoảng từ 0 - MAX_SPEED - http://arduino.vn/reference/constrain
-	analogWrite(IN3, speed);
-	digitalWrite(IN4, LOW);// chân này không có PWM
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("FW2");
-}
- 
-void motor_2_Lui(int speed) {
-	speed = constrain(speed, MIN_SPEED, MAX_SPEED);//đảm báo giá trị nằm trong một khoảng từ 0 - MAX_SPEED - http://arduino.vn/reference/constrain
-	analogWrite(IN4, 255 - speed);
-	digitalWrite(IN3, HIGH);// chân này không có PWM
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("RV2");
-}
 void loop()
 {
-recvData();
-unsigned long now = millis();
-if ( now - lastRecvTime > 1000 ) {
-ResetData(); // Signal lost.. Reset data |
-}
-else
-{
-int ch_width_1 = map(data.throttle, 0, 255, 1000, 2000);     // pin D2 (PWM signal)
-int ch_width_2 = map(data.steer,    0, 255, 1000, 2000);
-int servopos = data.servoPos;     // pin D3 (PWM signal)
-// Serial.print("Throttle");
-// Serial.println(ch_width_1);
-myservo.write(servopos);
+  //Read the data if available in buffer
+  if (radio.available())
+  {
+    radio.read(&data, sizeof(Signal));
+    int ythrottle=data.throttle;
+    int xsteer=data.steer;
+    int servoPos=data.servoPos;
 
-}
-}
-// Write the PWM signal 
-// ch1.writeMicroseconds(ch_width_1);
-// ch2.writeMicroseconds(ch_width_2);
-// ch3.writeMicroseconds(ch_width_3);
-// ch4.writeMicroseconds(ch_width_4);
+    if(ythrottle > 140)
+      {
+        pwm1 = ythrottle;
+        pwm2 = ythrottle;
 
-// if(ch_width_1 > 130)
-//   {
-//     motor_1_tien(ch_width_1);
-//     motor_2_tien(ch_width_2);
-//     delay(0);
-//   }
-// if(ch_width_1 < 115)
-//   {
-//     motor_1_lui(ch_width_1);
-//     motor_2_lui(ch_width_2);
-//     delay(0);
-//   }  
+        digitalWrite(IN1,HIGH);
+        digitalWrite(IN2,LOW);
+        digitalWrite(IN3,HIGH);
+        digitalWrite(IN4,LOW);
+        analogWrite(ENA, pwm1);
+        analogWrite(ENB, pwm2);
+        // Serial.println("motor FW");
+      }
+    else if(ythrottle < 120)
+      {
+        pwm1 = ythrottle;
+        pwm2 = ythrottle;
+        digitalWrite(IN1,LOW);  
+        digitalWrite(IN2,HIGH);
+        digitalWrite(IN3,LOW);
+        digitalWrite(IN4,HIGH);
+        analogWrite(ENA, pwm1);
+        analogWrite(ENB, pwm2);
+        // Serial.println("motor RV");
+      }
+    else
+      {
+        pwm1 = 0;
+        pwm2 = 0;
+        digitalWrite(IN1,LOW);
+        digitalWrite(IN2,LOW);
+        digitalWrite(IN3,LOW);
+        digitalWrite(IN4,LOW);
+        analogWrite(ENA, pwm1);
+        analogWrite(ENB, pwm2);
+        // Serial.println("motor stop");
+      }
+    
+    if (xsteer > 140) 
+    {
+    pwm1= xsteer;
+    pwm2= xsteer;
+    digitalWrite(IN1, HIGH);        // Động cơ trái tiến
+    digitalWrite(IN2, LOW);
+    digitalWrite(IN3, LOW);         // Động cơ phải lùi
+    digitalWrite(IN4, HIGH);
+    analogWrite(ENA, pwm1);  // Động cơ trái giữ tốc độ
+    analogWrite(ENB, pwm2 / 2);  // Giảm tốc độ động cơ phải
+    } 
+    else if (xsteer < 122) 
+    {
+    pwm1= xsteer;
+    pwm2= xsteer;
+    digitalWrite(IN1, LOW);         // Động cơ trái lùi
+    digitalWrite(IN2, HIGH);
+    digitalWrite(IN3, HIGH);        // Động cơ phải tiến
+    digitalWrite(IN4, LOW);
+    analogWrite(ENA, pwm1 / 2);  // Giảm tốc độ động cơ trái
+    analogWrite(ENB, pwm2);  // Động cơ phải giữ tốc độ 
+    }     
+    Serial.println(pwm1);
+    Serial.println(pwm2);
+  }
+}
